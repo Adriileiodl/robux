@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Painel do dono</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg"><span class="orb o1"></span><span class="orb o2"></span></div>
+
+  <!-- Login -->
+  <div id="telaLogin" class="login card">
+    <h2>🔐 Painel do dono</h2>
+    <input type="password" id="senha" placeholder="Senha do painel" autocomplete="current-password" />
+    <p id="erroLogin" class="erro"></p>
+    <button class="btn primary" id="entrar">Entrar</button>
+  </div>
+
+  <!-- Painel -->
+  <div id="telaPainel" class="admin hidden">
+    <h1>📦 Pedidos</h1>
+
+    <div class="bar">
+      <div class="card" style="padding:12px 18px">Estoque: <strong id="estoque" style="color:var(--ok)">...</strong> ROBUX</div>
+      <input type="number" id="novoEstoque" placeholder="Novo estoque" min="0" />
+      <button class="btn ghost sm" id="salvarEstoque">Definir estoque</button>
+      <button class="btn ghost sm" id="registrarWebhook">Registrar webhook no Inter</button>
+      <button class="btn ghost sm" id="sair">Sair</button>
+    </div>
+    <p id="msg" class="mini" style="margin:0 0 14px"></p>
+
+    <div class="tabs" id="abas">
+      <button data-f="pendentes" class="on">Aguardando aprovação</button>
+      <button data-f="aguardando_pagamento">Aguardando pagamento</button>
+      <button data-f="entregue">Entregues</button>
+      <button data-f="todos">Todos</button>
+    </div>
+
+    <div id="lista" class="pedidos"></div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const brl = (c) => (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const STATUS = {
+      aguardando_pagamento: ["Aguardando pagamento", "warn"],
+      pago_aguardando_aprovacao: ["Pago • aguardando aprovação", "info"],
+      pago_sem_estoque: ["Pago sem estoque (resolver)", "bad"],
+      entregue: ["Entregue", "ok"],
+      expirado: ["Expirado", "bad"],
+      cancelado: ["Cancelado", "bad"],
+    };
+    let senha = sessionStorage.getItem("adm") || "";
+    let dados = { stock: 0, orders: [] };
+    let filtro = "pendentes";
+    let timer = null;
+
+    async function api(path, body) {
+      const r = await fetch(path, {
+        method: body ? "POST" : "GET",
+        headers: { "Content-Type": "application/json", "x-admin-password": senha },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      let j = {};
+      try { j = await r.json(); } catch {}
+      if (!r.ok) throw Object.assign(new Error(j.error || "Erro"), { status: r.status });
+      return j;
+    }
+
+    function msg(t) { $("msg").textContent = t || ""; }
+
+    async function carregar() {
+      try {
+        dados = await api("/api/admin/orders");
+        $("telaLogin").classList.add("hidden");
+        $("telaPainel").classList.remove("hidden");
+        $("estoque").textContent = dados.stock.toLocaleString("pt-BR");
+        render();
+      } catch (e) {
+        if (e.status === 401) { sair(true); $("erroLogin").textContent = senha ? "Senha incorreta." : ""; }
+        else msg(e.message);
+      }
+    }
+
+    function render() {
+      const lista = $("lista");
+      lista.innerHTML = "";
+      let os = dados.orders;
+      if (filtro === "pendentes") os = os.filter((o) => o.status === "pago_aguardando_aprovacao" || o.status === "pago_sem_estoque");
+      else if (filtro !== "todos") os = os.filter((o) => o.status === filtro);
+      if (!os.length) { const p = document.createElement("p"); p.className = "mini"; p.textContent = "Nenhum pedido aqui."; lista.appendChild(p); return; }
+
+      for (const o of os) {
+        const [txt, cor] = STATUS[o.status] || [o.status, ""];
+        const div = document.createElement("div"); div.className = "pedido";
+        const info = document.createElement("div");
+        const b = document.createElement("b");
+        b.textContent = `${o.nick} — ${o.qty.toLocaleString("pt-BR")} ROBUX — ${brl(o.totalCents)}`;
+        const sm = document.createElement("small");
+        const quando = new Date(o.createdAt).toLocaleString("pt-BR");
+        sm.textContent = `Pedido ${o.id.slice(0, 8).toUpperCase()} • ${quando}` + (o.coupon ? ` • cupom ${o.coupon}` : "");
+        info.append(b, sm);
+
+        const dir = document.createElement("div"); dir.className = "acoes";
+        const tag = document.createElement("span"); tag.className = "tag " + cor; tag.textContent = txt; dir.appendChild(tag);
+
+        const cp = document.createElement("button"); cp.className = "btn ghost sm"; cp.textContent = "Copiar nick";
+        cp.onclick = async () => { try { await navigator.clipboard.writeText(o.nick); cp.textContent = "Copiado ✓"; setTimeout(() => (cp.textContent = "Copiar nick"), 1500); } catch {} };
+        dir.appendChild(cp);
+
+        if (o.status === "pago_aguardando_aprovacao" || o.status === "pago_sem_estoque") {
+          const ok = document.createElement("button"); ok.className = "btn ok sm"; ok.textContent = "Aprovar entrega";
+          ok.onclick = () => acao(o, "aprovar", `Confirmar que ${o.qty} ROBUX foram entregues para ${o.nick}?`);
+          const no = document.createElement("button"); no.className = "btn danger sm"; no.textContent = "Cancelar";
+          no.onclick = () => acao(o, "cancelar", `Cancelar o pedido de ${o.nick}? (o reembolso do Pix você faz no app do Inter)`);
+          dir.append(ok, no);
+        }
+        div.append(info, dir);
+        lista.appendChild(div);
+      }
+    }
+
+    async function acao(o, a, pergunta) {
+      if (!confirm(pergunta)) return;
+      try { await api("/api/admin/action", { id: o.id, action: a }); msg("Feito!"); await carregar(); }
+      catch (e) { msg(e.message); }
+    }
+
+    function entrar() {
+      senha = $("senha").value;
+      sessionStorage.setItem("adm", senha);
+      $("erroLogin").textContent = "";
+      carregar();
+      clearInterval(timer);
+      timer = setInterval(carregar, 10000);
+    }
+    function sair(silencioso) {
+      sessionStorage.removeItem("adm"); senha = ""; clearInterval(timer);
+      $("telaPainel").classList.add("hidden"); $("telaLogin").classList.remove("hidden");
+      if (!silencioso) $("senha").value = "";
+    }
+
+    $("entrar").onclick = entrar;
+    $("senha").addEventListener("keydown", (e) => { if (e.key === "Enter") entrar(); });
+    $("sair").onclick = () => sair(false);
+    $("abas").onclick = (e) => {
+      const f = e.target.dataset && e.target.dataset.f;
+      if (!f) return;
+      filtro = f;
+      document.querySelectorAll("#abas button").forEach((b) => b.classList.toggle("on", b === e.target));
+      render();
+    };
+    $("salvarEstoque").onclick = async () => {
+      const n = parseInt($("novoEstoque").value, 10);
+      if (!Number.isInteger(n) || n < 0) return msg("Digite um estoque válido.");
+      if (!confirm(`Definir o estoque para ${n} ROBUX?`)) return;
+      try { await api("/api/admin/stock", { stock: n }); $("novoEstoque").value = ""; msg("Estoque atualizado."); carregar(); }
+      catch (e) { msg(e.message); }
+    };
+    $("registrarWebhook").onclick = async () => {
+      try { const r = await api("/api/admin/webhook", {}); msg("Webhook registrado no Inter: " + r.webhookUrl); }
+      catch (e) { msg(e.message); }
+    };
+
+    if (senha) { timer = setInterval(carregar, 10000); carregar(); }
+  </script>
+</body>
+</html>

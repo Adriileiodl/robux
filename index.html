@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RobuxStore - Compre ROBUX com Pix</title>
+  <meta name="description" content="Compre ROBUX com Pix automático, rápido e seguro." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg">
+    <span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span>
+    <div id="particles"></div>
+  </div>
+
+  <header class="topbar">
+    <div class="logo"><span class="logo-icon">⬢</span> <span id="lojaNome">RobuxStore</span></div>
+    <nav>
+      <a href="#categorias">Categorias</a>
+      <a href="#comprar">Comprar</a>
+      <a href="#pedidos" id="linkPedidos">🛒 Meus pedidos <span class="count" id="contPedidos">0</span></a>
+      <a href="#" id="abrirChat">Suporte</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero">
+      <p class="badge">⚡ Pix automático • Entrega rápida</p>
+      <h1>Compre <span class="grad">ROBUX</span><br />de forma simples e segura</h1>
+      <p class="sub">Escolha a quantidade, informe seu nick, pague com Pix e acompanhe o pedido aqui mesmo.</p>
+      <div class="stats">
+        <div><strong id="statEstoque">...</strong><small>ROBUX em estoque</small></div>
+        <div><strong id="statPreco">...</strong><small>por ROBUX</small></div>
+        <div><strong id="statMin">...</strong><small>mínimo por pedido</small></div>
+      </div>
+    </section>
+
+    <section id="categorias" class="section">
+      <h2>Categorias</h2>
+      <div class="cats">
+        <button class="cat active" data-cat="roblox">
+          <span class="cat-ico">🎮</span>
+          <span class="cat-name">Roblox</span>
+          <span class="cat-desc">ROBUX para sua conta</span>
+        </button>
+        <div class="cat disabled">
+          <span class="cat-ico">✨</span>
+          <span class="cat-name">Em breve</span>
+          <span class="cat-desc">Novas categorias chegando</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="comprar" class="section">
+      <h2>Comprar ROBUX</h2>
+      <div class="buy">
+        <form id="form" class="card" autocomplete="off" novalidate>
+          <label>Quantidade de ROBUX
+            <input type="number" id="qtd" inputmode="numeric" step="1" placeholder="Mínimo 50" />
+            <small id="qtdInfo" class="hint"></small>
+          </label>
+
+          <label>Nick no Roblox
+            <input type="text" id="nick" maxlength="20" placeholder="Ex: MeuNick_123" />
+            <small class="hint">Digite exatamente como aparece no seu perfil.</small>
+          </label>
+
+          <label>Cupom (opcional)
+            <div class="row">
+              <input type="text" id="cupom" placeholder="Digite seu cupom" />
+              <button type="button" id="aplicarCupom" class="btn ghost">Aplicar</button>
+            </div>
+            <small id="cupomInfo" class="hint"></small>
+          </label>
+
+          <p id="erro" class="erro"></p>
+          <button type="submit" id="btnGerar" class="btn primary big">Gerar Pix</button>
+        </form>
+
+        <aside class="card resumo">
+          <h3>Resumo do pedido</h3>
+          <div class="linha"><span>ROBUX</span><strong id="rQtd">0</strong></div>
+          <div class="linha"><span>Subtotal</span><strong id="rSub">R$ 0,00</strong></div>
+          <div class="linha"><span>Desconto</span><strong id="rDesc">- R$ 0,00</strong></div>
+          <div class="linha total"><span>Total</span><strong id="rTotal">R$ 0,00</strong></div>
+          <p class="mini">🔒 O valor do Pix é gerado automaticamente com o total acima.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="pedidos" class="section hidden">
+      <h2>🛒 Meus pedidos</h2>
+      <div id="listaPedidos" class="pedidos"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>© <span id="ano"></span> <span id="lojaNome2"></span> — Todos os direitos reservados.</p>
+    <p class="mini">Não somos afiliados à Roblox Corporation.</p>
+  </footer>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-box">
+      <button class="fechar" id="fechar" aria-label="Fechar">✕</button>
+
+      <div id="stagePagar" class="stage">
+        <h3>Pague com Pix</h3>
+        <p class="mini" id="pedidoTxt"></p>
+        <div id="qrcode"></div>
+        <p class="valor" id="pixValor"></p>
+        <p class="timer">⏳ Expira em <strong id="timer">--:--</strong></p>
+        <label class="copia">Pix Copia e Cola
+          <textarea id="pixCodigo" readonly rows="4"></textarea>
+        </label>
+        <button class="btn ghost" id="copiar">Copiar código Pix</button>
+        <p class="mini">Assim que o pagamento for confirmado, esta tela atualiza sozinha.</p>
+      </div>
+
+      <div id="stagePago" class="stage hidden">
+        <div class="check">✓</div>
+        <h3>Pagamento confirmado!</h3>
+        <p class="mini" id="pagoTxt"></p>
+        <p>Seu pedido está <strong>aguardando aprovação</strong>. Fale com a gente no chat para receber seus ROBUX.</p>
+        <button class="btn primary" id="abrirChat2">Abrir chat</button>
+        <button class="btn ghost" id="copiarResumo">Copiar resumo do pedido</button>
+      </div>
+
+      <div id="stageFim" class="stage hidden">
+        <h3 id="fimTitulo"></h3>
+        <p id="fimTxt"></p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

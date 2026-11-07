@@ -1,0 +1,11 @@
+{
+  "name": "robux-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Loja de ROBUX com Pix automatico (Banco Inter), estoque automatico e painel do dono",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "vercel dev",
+    "test": "node test/pricing.test.js && node test/flow.test.js"
+  }
+}
